@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites errors="0" failures="2" skipped="0" tests="2" time="0.115663" timestamp="2015-07-29T13:10:35-06:00">
+  <testsuite name="Cars" tests="1" errors="0" failures="1" skipped="0">
+    <properties/>
+    <testcase name="Cars can be created" time="0.092612">
+      <failure message="failed Cars can be created" type="failed">
+        <![CDATA[expected to find text "Car has been created" in "Car was successfully created. Make: Maserati Model: Grandturismo Year: 2015 Price: 132000 Edit | Back"
+["./spec/features/car_creation_spec.rb:16:in `block (2 levels) in <top (required)>'"]]]>
+      </failure>
+    </testcase>
+  </testsuite>
+  <testsuite name="Creating Cars" tests="1" errors="0" failures="1" skipped="0">
+    <properties/>
+    <testcase name="Creating Cars can create a car" time="0.022284">
+      <failure message="failed Creating Cars can create a car" type="failed">
+        <![CDATA[expected to find text "Car has been created" in "Car was successfully created. Make: Ford Model: Mustang Year: 1967 Price: 2300 Edit | Back"
+["./spec/features/creating_cars_spec.rb:16:in `block (2 levels) in <top (required)>'"]]]>
+      </failure>
+    </testcase>
+  </testsuite>
+</testsuites>
