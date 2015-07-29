@@ -1,28 +1,98 @@
-== README
+Ruby on Rails on Jenkins on Docker
+  Kitematic recommended
+  Fork and clone this Directory
+  Docker names should not have spaces
 
-This README would normally document whatever steps are necessary to get the
-application up and running.
+Get Jenkins running on our localhost
+  cd into the 'jenkins_files' directory in a Docker terminal
+  change build_jenkins.sh to match your information (your git username or remove the whole prefix)
+  Run 'bash build_jenkins.sh'
+    This creates the container named Jenkins at port 8080
 
-Things you may want to cover:
+Have Jenkins run rspec tests
+  Open Jenkins in a browser (IP_ADDRESS:8080 or localhost:8080)
+  Create a 'New Item', name it 'Car Creation Tests', select 'Freestyle project', and click 'OK'
+  Fill in 'GitHub project' with 'https://github.com/GITHUB_USERNAME/my_first_rails_app/'
+  Under 'Advanced' check 'Use custom workspace' and fill in with '/tmp/jenkins-buildenv/${JOB_NAME}/workspace' (actually type: JOB_NAME)
+  Under 'Source Code Management' check 'Git'
+  Fill 'Repository URL' with 'https://github.com/GITHUB_USERNAME/my_first_rails_app.git'
+  Under 'Build Triggers' check 'Build when a change is pushed to GitHub' and 'Poll SCM'
+  Fill in 'Schedule' with '* * * * *' to check the repo every minute or 'H/5 * * * *' for every 5 minutes
+  Click 'Add build step' and select 'Execute shell' and fill with 'rspec'
+  Click 'Add post-build action' and select 'Publish JUnit test result report'
+  Fill in 'Test report XMLs' with 'spec/reports/*.xml'
+  Click 'Save'. The build won't work till it runs on our slave, which will be created later.
 
-* Ruby version
+Have Jenkins watch git repo
+  Go to your github repo for the test you're running
+  On the right side click 'Settings', then 'Webhooks & Services'
+  Select 'Add service' and find 'Jenkins (Git plugin)'
+  Fill in 'Jenkins url' with 'http://IP_ADDRESS:8080/github-webhook/' and click 'Add service'
 
-* System dependencies
+Have a Jenkins slave run the test
+  Generate an SSH key to connect to the slave nodes
+    Go back to your tereminal in the 'jenkins_files' directory and run 'docker exec -it jenkins /bin/bash'
+    This will attach us to the Jenkins container
+    Run 'ssh-keygen', save it to the default location and add a password if you so wish
 
-* Configuration
+  Emulate a slave on the localhost that we can ssh to
+    In a new Docker terminal, cd into the 'ubuntu_slave' directory
+      change build_ubuntu_slave to match your information (your git username or remove the whole prefix)
+      Run 'bash build_ubuntu_slave.sh'
+        This creates a container named ubuntu_slave at port 5000
+        It will appear to already be attached however it's typically broken(IDK why)
+        Run ctrl-c or exit(whichever works)
+      Run 'docker exec -it ubuntu_slave /bin/bash' (may have to 'docker start ubuntu_slave')
+    Go back to your terminal attached to the Jenkins container
+      cd /root/.ssh
+      Run 'cat id_rsa.pub' and copy the output
+    Go back to your teminal attached to the slave container
+      Run:
+        cd /root/.ssh
+        echo "PASTE_SSH" >> authorized_keys  (you need the double quotes)
+        service ssh start
+    Go back to your terminal attached to the Jenkins container
+      We can now test the connection
+      Run 'ssh ID_ADDRESS -p 5000'
+      You will be prompted to continue connecting, type 'yes'
+      If you connect, it worked and you can 'exit'
+  Get Jenkins to connect to the slave
+    Go back to Jenkins and click 'Manage Jenkins', then 'Manage Nodes', then 'New Node'
+    Name it 'slave1', select 'Dumb Slave', and click 'OK'
+    Fill in 'Remote root directory' with '/var/jenkins'
+    Fill in 'Labels' with 'car_creation'
+    Make sure 'Launch method' is set to 'Launch slave agents on Unix machines via SSH'
+    Fill in 'Host' with 'IP_ADDRESS'
+    By credentials click 'Add'
+    Under 'Kind', select 'SSH Username with private key'
+    Under 'Private Key', select 'From the Jenkins master ~/.ssh'
+    Click Add'
+    Click 'Advanced', and fill in 'Port' with '5000'
+    Click 'Save' (Keep relaunching, configuring and saving till it comes online)
+    Go back to 'Car Creation Tests' job configuration
+      Select 'Restrict where this project can be run' and fill in 'Label Expression' with 'car_creation'
+      Click 'Save'. It's now ready to 'Build Now'
 
-* Database creation
+Distributing test amoung multiple slaves
+  Return to your slave1 terminal
+  You can 'exit' out of ubuntu_slave and run:
+      docker run -p PORT_NUM:22 --name ubuntu_slave2 --privileged -t -i GIT_USERNAME/dockerubuntu (PORT_NUM!=5000)
+  Copy and paste the ssh key into authorized_keys again
+  In the Jenkins terminal 'ssh ID_ADDRESS -p PORT_NUM'
+  In Jenkins:
+  Create a new node:
+    Name it 'slave2', select 'Copy Existing Node', fill in 'Copy from' with 'slave1', and click 'OK'
+    Click 'Advanced', and fill in 'Port' with 'PORT_NUM'
+    Change the Label to 'creating_cars'
+  Go back to your 'Car Creation Tests' job configuration
+  Change the execute shell to:
+    rspec spec/features/car_creation_spec.rb
+  Click 'Save'. It's will now run the specified tests
+  Create another 'New Item'
+    Name it 'Creating Cars Tests' select 'Copy existing Item' and fill in 'Car Creation Tests' and click 'OK'
+    Change the 'Label Expression' to 'creating_cars'
+    Change the execute shell to:
+      rspec spec/features/creating_cars_spec.rb
+    Click 'Save'. It's now ready to 'Build Now'
 
-* Database initialization
-
-* How to run the test suite
-
-* Services (job queues, cache servers, search engines, etc.)
-
-* Deployment instructions
-
-* ...
-
-
-Please feel free to use a different markup language if you do not plan to run
-<tt>rake doc:app</tt>.
+DONE!!!
